@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VoiceUp - 毎日5分のボイトレ＆カラオケ上達アプリ</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🎤</span>
+        <div>
+          <h1>VoiceUp</h1>
+          <p class="subtitle">音感＆音域ストレッチ・トレーナー</p>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-badge" id="todayMissionBadge" title="今日の目標（1日3回クリア）">✅ 今日: <span id="todayCountText">0/3</span>回</div>
+        <div class="stat-badge" id="streakBadge" title="連続練習日数">🔥 <span id="streakCount">1</span>日目</div>
+        <div class="stat-badge" id="rangeBadge" title="あなたの現在の音域">🎵 音域: <span id="userRangeText">未測定</span></div>
+      </div>
+    </header>
+
+    <!-- モード選択タブ (5タブ) -->
+    <nav class="mode-tabs" role="tablist">
+      <button class="tab-btn active" data-mode="longtone">
+        <span class="tab-icon">🎯</span>
+        <span class="tab-label">1. 音程キープ</span>
+      </button>
+      <button class="tab-btn" data-mode="scale">
+        <span class="tab-icon">🪜</span>
+        <span class="tab-label">2. 音階トレ</span>
+      </button>
+      <button class="tab-btn" data-mode="song">
+        <span class="tab-icon">🎶</span>
+        <span class="tab-label">3. 曲フレーズ</span>
+      </button>
+      <button class="tab-btn" data-mode="range">
+        <span class="tab-icon">📏</span>
+        <span class="tab-label">音域測定</span>
+      </button>
+      <button class="tab-btn" data-mode="records">
+        <span class="tab-icon">📊</span>
+        <span class="tab-label">成長記録</span>
+      </button>
+    </nav>
+
+    <!-- メインステージ (練習モード時に表示) -->
+    <main class="main-stage" id="practiceStage">
+      <!-- 現在の音程インジケーター -->
+      <div class="pitch-hud">
+        <div class="hud-card target-card">
+          <span class="hud-label">お手本 (Target)</span>
+          <div class="hud-note" id="targetNoteDisplay">--</div>
+          <span class="hud-sub" id="targetFreqDisplay">--- Hz</span>
+        </div>
+
+        <div class="hud-center">
+          <div class="accuracy-ring" id="accuracyRing">
+            <span class="current-note" id="detectedNoteDisplay">--</span>
+            <span class="cent-diff" id="centDiffDisplay">マイク待機中</span>
+          </div>
+          <!-- チューナー風ズレ表示バー -->
+          <div class="cent-bar-wrapper">
+            <span class="cent-mark low">低い(♭)</span>
+            <div class="cent-bar-track">
+              <div class="cent-center-zone"></div>
+              <div class="cent-pointer" id="centPointer"></div>
+            </div>
+            <span class="cent-mark high">高い(♯)</span>
+          </div>
+        </div>
+
+        <div class="hud-card score-card">
+          <span class="hud-label">一致率 / スコア</span>
+          <div class="hud-score"><span id="currentScoreDisplay">0</span><small>%</small></div>
+          <span class="hud-sub" id="comboDisplay">安定度: --</span>
+        </div>
+      </div>
+
+      <!-- カラオケ風ピッチロール Canvas -->
+      <div class="canvas-wrapper">
+        <canvas id="pitchCanvas"></canvas>
+        <div class="canvas-overlay" id="canvasOverlay">
+          <p id="overlayMessage">「マイクON」を押して声を出すと、ここに音程の線が表示されます</p>
+        </div>
+      </div>
+
+      <!-- ガイドメッセージ / アドバイス表示エリア -->
+      <div class="coach-banner" id="coachBanner">
+        <span class="coach-avatar">💡</span>
+        <p id="coachText">まずは「マイクON」ボタンを押して、声が出るか試してみましょう！</p>
+      </div>
+
+      <!-- モード別コントロールパネル -->
+      <section class="control-panel">
+        <!-- 共通マイク＆お手本ボタン -->
+        <div class="primary-actions">
+          <button id="micToggleBtn" class="btn btn-mic">
+            🎙️ マイクON
+          </button>
+          <button id="playRefBtn" class="btn btn-secondary">
+            🎹 お手本を聴く
+          </button>
+          <button id="startTrainingBtn" class="btn btn-primary">
+            ▶️ トレーニング開始
+          </button>
+        </div>
+
+        <!-- 1. ロングトーン設定 -->
+        <div class="mode-settings active" id="settings-longtone">
+          <div class="setting-row">
+            <label>練習する高さ (キー):</label>
+            <div class="stepper">
+              <button class="step-btn" id="ltNoteDown">◀ 半音下げる</button>
+              <span class="step-value" id="ltCurrentNoteLabel">A3 (ラ)</span>
+              <button class="step-btn" id="ltNoteUp">半音上げる ▶</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>声のタイププリセット:</label>
+            <div class="preset-chips">
+              <button class="chip" data-base-midi="53">男性・低め (F3)</button>
+              <button class="chip active" data-base-midi="57">男女・出しやすい中音 (A3)</button>
+              <button class="chip" data-base-midi="60">女性・標準 (C4)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 音階ストレッチ設定 -->
+        <div class="mode-settings" id="settings-scale">
+          <div class="setting-row">
+            <label>パターン:</label>
+            <select id="scalePatternSelect" class="select-input">
+              <option value="three">初級：ド・レ・ミ・レ・ド (3音ミニ階段)</option>
+              <option value="five" selected>基本：ド・レ・ミ・ファ・ソ・ファ・ミ・レ・ド (5音)</option>
+              <option value="arpeggio">応用：ド・ミ・ソ・ミ・ド (ジャンプ練習)</option>
+              <option value="siren">音域拡大：スライドアップ＆ダウン (声帯ストレッチ)</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>スタート音:</label>
+            <div class="stepper">
+              <button class="step-btn" id="scaleKeyDown">◀ 低く (-1)</button>
+              <span class="step-value" id="scaleKeyLabel">A3 から開始</span>
+              <button class="step-btn" id="scaleKeyUp">高く (+1) ▶</button>
+            </div>
+          </div>
+          <div class="setting-row checkbox-row">
+            <label>
+              <input type="checkbox" id="autoKeyUpCheck" checked />
+              80%以上でクリアしたら自動的に半音上げて音域を広げる
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. 曲フレーズ練習設定 -->
+        <div class="mode-settings" id="settings-song">
+          <div class="setting-row">
+            <label>練習フレーズ選択:</label>
+            <select id="songSelect" class="select-input">
+              <option value="furusato">練習曲1：ゆったり階段メロディ（ふるさと風・初級）</option>
+              <option value="jpop_a">練習曲2：J-POP風 Aメロ（狭い音域で歌いやすい）</option>
+              <option value="jpop_chorus">練習曲3：J-POP風 サビ（高音ロングトーン練習）</option>
+              <option value="kirakira">練習曲4：きらきら星（音程ジャンプの基礎）</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>キー調整 (カラオケリモコン):</label>
+            <div class="stepper">
+              <button class="step-btn" id="songKeyDown">♭ -1</button>
+              <span class="step-value" id="songKeyOffsetLabel">原曲キー (±0)</span>
+              <button class="step-btn" id="songKeyUp">♯ +1</button>
+            </div>
+            <label>テンポ:</label>
+            <div class="stepper">
+              <button class="step-btn" id="songTempoDown">遅く</button>
+              <span class="step-value" id="songTempoLabel">100%</span>
+              <button class="step-btn" id="songTempoUp">速く</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>💡 ご自身のSuno曲・伴奏の読み込み (β機能):</label>
+            <div class="file-upload-group">
+              <label class="file-btn">
+                🎵 伴奏音声(MP3/WAV)を選択
+                <input type="file" id="audioFileInput" accept="audio/*" hidden />
+              </label>
+              <span id="audioFileName" class="file-name">未選択 (内蔵シンセ伴奏を使用)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 音域測定設定 -->
+        <div class="mode-settings" id="settings-range">
+          <div class="range-result-box">
+            <div class="range-stat">
+              <span>最低音 (Low)</span>
+              <strong id="measuredMinNote">--</strong>
+            </div>
+            <div class="range-arrow">⟷</div>
+            <div class="range-stat">
+              <span>最高音 (High)</span>
+              <strong id="measuredMaxNote">--</strong>
+            </div>
+            <div class="range-stat highlight">
+              <span>あなたの音域幅</span>
+              <strong id="measuredSpan">-- 半音</strong>
+            </div>
+          </div>
+          <div class="setting-row">
+            <button id="resetRangeBtn" class="btn btn-outline">🔄 測定をリセットして測り直す</button>
+            <button id="applyRangeBtn" class="btn btn-accent" disabled>✨ この音域に合わせて練習キーを自動設定</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 📊 成長記録ステージ (「成長記録」タブ選択時に表示) -->
+    <section class="records-stage hidden" id="recordsStage">
+      <!-- 1. 今日のミッション達成カード -->
+      <div class="record-card mission-card">
+        <div class="mission-header">
+          <div>
+            <h2>🎯 今日のデイリー・ボイトレ目標 (1日3回)</h2>
+            <p id="missionStatusText">あと3回トレーニングすると今日のスタンプが押されます！</p>
+          </div>
+          <div class="stamp-box" id="dailyStampBox">未達成</div>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="missionProgressBar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- 2. 総合ステータス4枚カード -->
+      <div class="stats-overview-grid">
+        <div class="stat-overview-card">
+          <span class="ov-label">総トレーニング回数</span>
+          <strong class="ov-val" id="ovTotalSessions">0回</strong>
+        </div>
+        <div class="stat-overview-card">
+          <span class="ov-label">直近10回の平均スコア</span>
+          <strong class="ov-val text-green" id="ovAvgScore">--%</strong>
+        </div>
+        <div class="stat-overview-card">
+          <span class="ov-label">クリア最高音 (音階トレ)</span>
+          <strong class="ov-val text-blue" id="ovMaxClearedNote">--</strong>
+        </div>
+        <div class="stat-overview-card">
+          <span class="ov-label">あなたの音程の傾向</span>
+          <strong class="ov-val text-amber" id="ovPitchTendency">データ収集中</strong>
+        </div>
+      </div>
+
+      <!-- 3. 日別の成長推移グラフ (スコア & 音域) -->
+      <div class="record-card">
+        <div class="card-title-row">
+          <h3>📈 日別の上達グラフ（平均スコア ＆ 最高スコア推移）</h3>
+          <span class="card-sub">練習するごとに自動更新されます</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="growthChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- 4. 音域別の得意・苦手マップ -->
+      <div class="record-card">
+        <div class="card-title-row">
+          <h3>🎹 音の高さ別・命中率マップ（あなたの得意な音域 / 苦手な音域）</h3>
+          <span class="card-sub">緑＝安定して出せる音 / 黄・赤＝練習中の音</span>
+        </div>
+        <div class="note-heatmap" id="noteHeatmapContainer">
+          <p class="empty-hint">トレーニングを行うと、音の高さごとの命中率がここに表示されます。</p>
+        </div>
+      </div>
+
+      <!-- 5. 直近の練習履歴リスト -->
+      <div class="record-card">
+        <div class="card-title-row">
+          <h3>🕒 直近のトレーニング履歴 (最新15件)</h3>
+        </div>
+        <div class="history-list" id="historyListContainer">
+          <p class="empty-hint">まだ履歴がありません。「音程キープ」や「音階トレ」をやってみましょう！</p>
+        </div>
+      </div>
+
+      <!-- 6. データ引き継ぎ・バックアップ (PC ⇄ スマホ対応) -->
+      <div class="record-card backup-card">
+        <div class="card-title-row">
+          <h3>📲 データのバックアップ・端末引き継ぎ</h3>
+          <span class="card-sub">記録はお使いのブラウザ内に自動保存されています。PCとスマホで記録を移したい時はファイル書き出し・読み込みが使えます。</span>
+        </div>
+        <div class="backup-actions">
+          <button id="exportDataBtn" class="btn btn-outline">💾 記録データを保存 (JSON)</button>
+          <label class="btn btn-outline file-label-btn">
+            📂 記録データを読み込む
+            <input type="file" id="importDataInput" accept=".json,application/json" hidden />
+          </label>
+          <button id="clearAllDataBtn" class="btn btn-outline btn-danger-outline">🗑️ 全記録を初期化</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
